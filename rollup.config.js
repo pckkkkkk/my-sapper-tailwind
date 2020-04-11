@@ -8,6 +8,14 @@ import config from 'sapper/config/rollup.js';
 import pkg from './package.json';
 import sveltePreprocess from 'svelte-preprocess';
 import postcss from 'rollup-plugin-postcss';
+import alias from '@rollup/plugin-alias';
+import path from 'path';
+
+const mode = process.env.NODE_ENV;
+const dev = mode === 'development';
+const legacy = !!process.env.SAPPER_LEGACY_BUILD;
+
+const onwarn = (warning, onwarn) => (warning.code === 'CIRCULAR_DEPENDENCY' && /[/\\]@sapper[/\\]/.test(warning.message)) || onwarn(warning);
 
 const preprocess = sveltePreprocess({
 	postcss: true
@@ -16,13 +24,6 @@ const preprocess = sveltePreprocess({
 const postcssExtract = postcss({
 	extract: 'static/css/utils.css'
 })
-
-const mode = process.env.NODE_ENV;
-const dev = mode === 'development';
-const legacy = !!process.env.SAPPER_LEGACY_BUILD;
-
-const onwarn = (warning, onwarn) => (warning.code === 'CIRCULAR_DEPENDENCY' && /[/\\]@sapper[/\\]/.test(warning.message)) || onwarn(warning);
-const dedupe = importee => importee === 'svelte' || importee.startsWith('svelte/');
 
 export default {
 	client: {
@@ -33,19 +34,30 @@ export default {
 				'process.browser': true,
 				'process.env.NODE_ENV': JSON.stringify(mode)
 			}),
+			
 			svelte({
 				preprocess,
 				dev,
 				hydratable: true,
 				css: file =>  file.write('static/css/bundle.css')
 			}),
-
+			
 			postcssExtract,
+
+			alias({
+				entries: [
+					{
+						find: "@",
+						replacement: path.resolve(__dirname, 'src/')
+					}
+				]
+			}),
 
 			resolve({
 				browser: true,
-				dedupe
+				dedupe: ['svelte']
 			}),
+
 			commonjs(),
 			
 			legacy && babel({
@@ -86,14 +98,24 @@ export default {
 				preprocess,
 				generate: 'ssr',
 				dev,
-				css: file =>  file.write('static/css/bundle.css')
+				css: file => file.write('static/css/bundle.css')
 			}),
 
 			postcssExtract,
 
-			resolve({
-				dedupe
+			alias({
+				entries: [
+					{
+						find: "@",
+						replacement: path.resolve(__dirname, 'src/')
+					}
+				]
 			}),
+
+			resolve({
+				dedupe: ['svelte']
+			}),
+
 			commonjs()
 		],
 		external: Object.keys(pkg.dependencies).concat(
@@ -103,7 +125,7 @@ export default {
 			onwarn,
 		},
 		
-		serviceworker: {
+		serviceworker: !dev && {
 			input: config.serviceworker.input(),
 			output: config.serviceworker.output(),
 			plugins: [
@@ -116,7 +138,6 @@ export default {
 				!dev && terser()
 			],
 			
-			onwarn
+			onwarn,
 		}
 	};
-	

@@ -1,7 +1,8 @@
-import * as sapper from '@sapper/app';
+import * as sapper from '@sapper/app'
 
-import './tw.css';
+import '@/assets/css/tailwind.css'
+import '@/assets/css/global.css'
 
 sapper.start({
 	target: document.querySelector('#sapper')
-});
+})

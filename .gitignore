@@ -6,3 +6,4 @@ yarn-error.log
 /__sapper__/
 /static/css
 /static/js
+package-lock.json
